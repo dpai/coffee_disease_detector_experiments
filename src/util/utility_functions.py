@@ -1,11 +1,14 @@
 ## Utility Functions.
 ## Convenience functions to be reused.
 import cv2
+import imutils
+import ipyplot
 import matplotlib.pyplot as plt 
 import numpy as np
 import os
 import pandas as pd
 from pathlib import Path
+import tensorflow as tf
 
 def cleanFolder(folder, recurse=False):
     """
@@ -49,6 +52,9 @@ def buildCropDiseaseCountTuple(instanceFolder):
     @return Tuple ('Crop Name', 'Class Name', 'Count')
     """
     instanceFolder = Path(instanceFolder)
+    if not instanceFolder.exists():
+        print("Input folder (Parameter 1) does not exist")
+        return None
     
     str_name = str(instanceFolder.name)
     str_name = str_name.replace(" leaf", "").rstrip()
@@ -173,3 +179,86 @@ def loadData(inputDir):
     all_classes = np.asarray(all_classes)
     all_ids = np.asarray(all_ids)
     return all_images, all_classes, all_ids
+
+def resizeImage(inputFolder, outputFolder, classnames, width=256, height=256):
+  """
+  Augment all the images in the input folder: resize images to width x height
+  @param inputFolder Input dataset root directory
+  @param outputFolder Output directory where resized images are stored
+  @param classnames Labels are subdirectories within the root input folder
+  @param width Width of the output image
+  @param height Height of the output image.
+  """
+  for c in classnames:
+    folder_path = Path(inputFolder)/c
+    output_path = Path(outputFolder)/c
+    output_path.mkdir(parents=True, exist_ok=True)
+    print(f"Track {c}")
+    for image_path in folder_path.glob('*'):
+      #print(image_path)
+      img = cv2.imread(str(image_path))
+      #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+      img = cv2.resize(img, [width, height])
+      cv2.imwrite(str(output_path/image_path.name), img)
+      #print(output_path/image_path.name)
+  return
+
+def rotateImage(inputFolder, outputFolder, classnames):
+  """
+  Augment all the images in the input  folder: rotate images to the following
+  3 rotation angles: 90, 180 and 270
+  @param inputFolder Input dataset root directory
+  @param outputFolder Output directory where resized images are stored
+  @param classnames Labels are subdirectories within the root input folder
+  """
+  for c in classnames:
+    folder_path = Path(inputFolder)/c
+    output_path = Path(outputFolder)/c
+    output_path.mkdir(parents=True, exist_ok=True)
+    print(f"Track {c}")
+    for image_path in folder_path.glob('*'):
+      #print(image_path)
+      img = cv2.imread(str(image_path))
+      #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+      for angle in np.arange(0, 360, 90):
+        rotated = imutils.rotate_bound(img, angle)
+        opfile = output_path.joinpath(f"Aug_rot_{angle}_{image_path.name}")
+        cv2.imwrite(str(opfile), rotated)
+        #break
+
+  return
+
+def VisualizeAsClassTabs(csvFile, classNames, size):
+  """
+  This is a simple UI to have representative images from multiple classes,
+  visualized within its own class tab.
+  @param csvFile CSV file for the dataset
+  @param classnames Labels within the dataset.
+  @param size Number of images per class to visualize
+  """
+  df = pd.read_csv(csvFile)
+  inputDir = csvFile.parent
+  image_array = []
+  label_array = []
+  for c in classNames:
+    cdf = df.query(f'ClassName == "{c}"')
+    for i in np.random.choice(np.arange(0, cdf.shape[0]), size=(size,)):
+      file = cdf.iloc[i]['FileName']
+      img = cv2.imread(str(inputDir.joinpath(file)))
+      img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+      label_array.append(cdf.iloc[i]['ClassName'])
+      image_array.append(img)
+
+  ipyplot.plot_class_tabs(image_array, label_array, max_imgs_per_tab = size, img_width=150)
+
+def VisualizeSampleImages(image, convert=False):
+    ## Note convert from BGR to RGB here
+    if convert:
+      plt.imshow(image[:,:,::-1])
+    else:
+      plt.imshow(image)
+    #plt.show()
+      
+def fixRandomSeed(seed):
+   tf.random.set_seed(seed)
+   
