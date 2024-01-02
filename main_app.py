@@ -1,5 +1,6 @@
 import argparse
 from logging import getLogger
+from dataprocess.dataprocessfactory import dataProcessorFactory
 
 logger = getLogger()
 
@@ -37,6 +38,11 @@ def main():
     args = parser.parse_args()
     printArguments(args)
 
+    dataprocessor = dataProcessorFactory(args)
+
+    print(dataprocessor.rootdir)
+    print(dataprocessor.traindir)
+    print(dataprocessor.testdir)
 
 if __name__ == '__main__':
     main()
